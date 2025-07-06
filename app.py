@@ -1,67 +1,72 @@
 import streamlit as st
+import yaml
 import streamlit_authenticator as stauth
 import pandas as pd
-import yaml
-import os
+from yaml.loader import SafeLoader
 
-# --- Load config.yaml ---
+# -----------------------------
+# Load config
+# -----------------------------
 with open('config.yaml') as file:
-    config = yaml.safe_load(file)
+    config = yaml.load(file, Loader=SafeLoader)
 
-# --- Authenticator ---
+# -----------------------------
+# Authenticator
+# -----------------------------
 authenticator = stauth.Authenticate(
     config['credentials'],
     config['cookie']['name'],
     config['cookie']['key'],
-    config['cookie']['expiry_days'],
-    config['preauthorized']
+    config['cookie']['expiry_days']
 )
 
-# --- Login Widget (FIX: use keyword) ---
 name, authentication_status, username = authenticator.login('Login', location='main')
 
-if authentication_status == False:
+if authentication_status is False:
     st.error('Username/password is incorrect')
-
-if authentication_status == None:
+elif authentication_status is None:
     st.warning('Please enter your username and password')
+elif authentication_status:
 
-if authentication_status:
     authenticator.logout('Logout', 'sidebar')
-    st.sidebar.success(f'Welcome {name}!')
+    st.sidebar.success(f"Welcome *{name}*")
 
-    st.title('PMJ Membership Manager')
+    st.title("PMJ Membership Manager")
 
-    # --- Load or create Excel ---
-    if not os.path.exists('members.xlsx'):
-        df = pd.DataFrame(columns=[
-            'ID', 'Full Name', 'Initial', 'Father Name', 'City',
-            'UAE Address', 'Home Address', 'Contact Number',
-            'Other Contacts', 'Email', 'Remarks', 'Payment History'
+    # -----------------------------
+    # Load or create member data
+    # -----------------------------
+    try:
+        members_df = pd.read_excel('members.xlsx')
+    except FileNotFoundError:
+        members_df = pd.DataFrame(columns=[
+            'Full Name', 'Initial', 'Father Name', 'City', 'UAE Address',
+            'Home Address', 'Contact Number', 'Other Relatives',
+            'Email', 'Remarks'
         ])
-        df.to_excel('members.xlsx', index=False)
-    else:
-        df = pd.read_excel('members.xlsx')
+        members_df.to_excel('members.xlsx', index=False)
 
-    # --- Sidebar: Add New Member ---
+    # -----------------------------
+    # Sidebar - Add New Member
+    # -----------------------------
     st.sidebar.header('Add New Member')
-    with st.sidebar.form('new_member_form'):
+    with st.sidebar.form('Add Member'):
         full_name = st.text_input('Full Name')
         initial = st.text_input('Initial')
         father_name = st.text_input('Father Name')
-        city = st.selectbox('City', ['Dubai', 'Sharjah', 'Ajman', 'Abu Dhabi', 'Alain', 'Northern Emirates'])
-        uae_address = st.text_input('UAE Address')
-        home_address = st.text_input('Home Address')
+        city = st.selectbox('City', [
+            'Dubai', 'Sharjah', 'Ajman', 'Abu Dhabi', 'Alain', 'Northern Emirates'
+        ])
+        uae_address = st.text_area('UAE Address')
+        home_address = st.text_area('Home Address')
         contact_number = st.text_input('Contact Number')
-        other_contacts = st.text_area('Other Relative Contacts')
+        other_relatives = st.text_area('Other Relatives (comma-separated)')
         email = st.text_input('Email')
         remarks = st.text_area('Remarks')
-        submitted = st.form_submit_button('Add Member')
+        submit = st.form_submit_button('Add Member')
 
-        if submitted and full_name:
-            new_id = 1 if df.empty else df['ID'].max() + 1
+        if submit:
             new_row = {
-                'ID': new_id,
                 'Full Name': full_name,
                 'Initial': initial,
                 'Father Name': father_name,
@@ -69,24 +74,28 @@ if authentication_status:
                 'UAE Address': uae_address,
                 'Home Address': home_address,
                 'Contact Number': contact_number,
-                'Other Contacts': other_contacts,
+                'Other Relatives': other_relatives,
                 'Email': email,
-                'Remarks': remarks,
-                'Payment History': ''
+                'Remarks': remarks
             }
-            df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-            df.to_excel('members.xlsx', index=False)
-            st.sidebar.success(f'Member {full_name} added!')
+            members_df = pd.concat([members_df, pd.DataFrame([new_row])], ignore_index=True)
+            members_df.to_excel('members.xlsx', index=False)
+            st.sidebar.success('Member added successfully!')
 
-    # --- Main Dashboard ---
-    st.header('All Members')
-    st.dataframe(df)
+    # -----------------------------
+    # Main - View Members
+    # -----------------------------
+    st.subheader('All Members')
+    st.dataframe(members_df)
 
-    # --- Export Option ---
-    csv = df.to_csv(index=False).encode('utf-8')
+    # -----------------------------
+    # Export
+    # -----------------------------
+    csv = members_df.to_csv(index=False).encode('utf-8')
     st.download_button(
-        label="Download members as CSV",
-        data=csv,
-        file_name='members.csv',
-        mime='text/csv'
+        "Download CSV",
+        csv,
+        "members.csv",
+        "text/csv",
+        key='download-csv'
     )
