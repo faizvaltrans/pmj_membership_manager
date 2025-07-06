@@ -1,14 +1,6 @@
 credentials:
   usernames:
     admin:
-      email: admin@example.com
-      name: Admin User
-      password: '$2b$12$EVQqAXt9ikCD69m.SddFZubGWmPVroZrKn8nq1M7CzKz6PpJOb2lC'
-
-cookie:
-  expiry_days: 30
-  key: pmj_cookie
-  name: pmj_login
-
-preauthorized:
-  emails: []
+      email: "admin@example.com"
+      name: "Admin"
+      password: "$2b$12$...."
